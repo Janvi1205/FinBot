@@ -1,0 +1,4 @@
+[build]
+  base = "frontend/AI bot"
+  publish = "dist"
+  command = "npm run build"

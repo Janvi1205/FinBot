@@ -1,0 +1,140 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+
+@theme {
+  --color-ai-blue: #3173AD;
+  --color-ai-yellow: #DBF63C;
+  --color-dark-grey: #1B1B1B;
+  --color-dark-black: #090909;
+  
+  --font-sans: 'Inter', 'Poppins', 'SF Pro Display', system-ui, sans-serif;
+  
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-fade-in: fadeIn 1s ease-in;
+  --animate-fade-in-delay: fadeIn 1s ease-in 0.3s both;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-sans);
+  background: #090909;
+  color: #ffffff;
+  overflow-x: hidden;
+  
+  width: 100%;
+}
+
+.glow-hover {
+  transition: all 0.3s ease;
+}
+
+.glow-hover:hover {
+  text-shadow: 0 0 10px rgba(219, 246, 60, 0.5),
+               0 0 20px rgba(219, 246, 60, 0.3),
+               0 0 30px rgba(219, 246, 60, 0.2);
+}
+
+.nav-link {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: #fafaf6;
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.markdown-body h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 14px;
+  margin-bottom: 10px;
+}
+
+.markdown-body p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.markdown-body ul {
+  list-style-type: disc;
+  margin-left: 20px;
+  margin-bottom: 12px;
+}
+
+.markdown-body li { 
+  margin-bottom: 6px;
+}
+
+.markdown-body br {
+  margin-bottom: 12px;
+}
+
+
+/* Add to your global CSS file */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile keyboard handling */
+@supports (height: 100dvh) {
+  html {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Ensure input area stays visible on mobile */
+@media (max-width: 1024px) {
+  /* Prevent zoom on input focus for iOS */
+  input[type="text"],
+  input[type="textarea"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* Smooth scrolling for mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+

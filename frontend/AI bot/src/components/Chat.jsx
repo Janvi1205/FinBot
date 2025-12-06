@@ -320,154 +320,151 @@ service cloud.firestore {
         <div className="w-full h-[100dvh] lg:h-screen flex justify-center items-center bg-[#090909] overflow-hidden">
             <div className="flex flex-col h-full w-full max-w-4xl bg-[#090909] text-white overflow-hidden">
 
-                <div className="flex flex-col h-[100dvh] lg:h-screen bg-[#090909] text-white overflow-hidden">
+                <div className="flex h-[50px] sm:h-[60px] items-center w-full max-w-[900px] mx-auto backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-lg shadow-black/20 py-2 sm:py-4 px-4 sm:px-6 lg:px-8 flex-shrink-0">
+                    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-2 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        
+                        <h1 className="text-base ml-13! sm:text-lg font-semibold flex-1 text-center">FinBot</h1>
+                        <Link
+                            to="/"
+                            className="p-2 rounded-lg transition-colors flex-shrink-0"
+                            title="Back to Home"
+                        >
+                            <p className='lg:hidden mr-3! '>Back</p>
+                            <svg className="w-5 h-5 hidden lg:block mr-10! " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </Link>
 
-                    <div className="flex h-[50px] sm:h-[60px]    items-center w-full max-w-[900px] mx-auto backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-lg shadow-black/20 py-2 sm:py-4 px-4 sm:px-6 lg:px-8">
-                        <div className="w-full max-w-4xl  mx-auto px-3 sm:px-6 py-2 sm:py-4 flex items-center gap-2 sm:gap-3">
-                            
-                            <h1 className="text-base ml-13! sm:text-lg font-semibold flex-1 text-center">FinBot</h1>
-                            <Link
-                                to="/"
-                                className="p-2 rounded-lg  transition-colors flex-shrink-0"
-                                title="Back to Home"
-                            >
-                                <p className='lg:hidden mr-3! '>Back</p>
-                                <svg className="w-5 h-5 hidden lg:block mr-10! " fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </Link>
-
-                        </div>
                     </div>
+                </div>
 
-                    <div className="flex-1 overflow-y-auto hide-scrollbar pt-16 lg:pt-0">
-                        <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 lg:py-8">
+                <div className="flex-1 overflow-y-auto hide-scrollbar min-h-0">
+                    <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 lg:py-8">
 
-                            {messages.length === 0 && (
-                                <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
-                                    <div>
-                                        <img style={{ height: "90px" }} src={robotImageSrc} alt="" />
-                                    </div>
-                                    <h2 className="text-2xl sm:text-3xl font-semibold mb-3 text-white px-4">How can I help you today?</h2>
-                                    <p className="text-gray-400 max-w-lg text-sm sm:text-base leading-relaxed px-4">
-                                        Ask me anything about financial literacy in India, government schemes, loans, RBI rules, and more.
-                                    </p>
+                        {messages.length === 0 && (
+                            <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-250px)] lg:min-h-[calc(100vh-250px)] text-center">
+                                <div>
+                                    <img style={{ height: "90px" }} src={robotImageSrc} alt="" />
                                 </div>
-                            )}
+                                <h2 className="text-2xl sm:text-3xl font-semibold mb-3 text-white px-4">How can I help you today?</h2>
+                                <p className="text-gray-400 max-w-lg text-sm sm:text-base leading-relaxed px-4">
+                                    Ask me anything about financial literacy in India, government schemes, loans, RBI rules, and more.
+                                </p>
+                            </div>
+                        )}
 
-                            <div style={{ marginTop: "20px" }} className="mt-6">
-                                {messages.map((message, index) => (
-                                    <div
-                                        key={message.id || index}
-                                        style={{ marginTop: "20px" }}
-                                        className={`flex gap-4 items-start 
-                                            ${message.role === 'user' ? 'justify-end' : 'justify-start'}
-                                            ${index > 0 && messages[index - 1].role !== message.role ? "mt-10" : "mt-3"}
-                                        `}
-                                    >
-                                        {message.role === 'assistant' && (
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3173AD] to-[#DBF63C] flex items-center justify-center flex-shrink-0 mt-1 shadow-md overflow-hidden">
-                                                <img className="h-8" src={robotImageSrc} alt="FinBot" />
-                                            </div>
-                                        )}
-
-                                        <div
-                                            style={{ padding: message.role === 'user' ? "5px" : "10px" }}
-                                            className={`max-w-[85%] rounded-2xl px-5 py-2 break-words whitespace-normal
-                                                ${message.role === 'user'
-                                                    ? 'bg-[#306d3f] text-white shadow-lg'
-                                                    : 'bg-[#1B1B1B] text-gray-100 border border-gray-800/50 shadow-md'
-                                                }`}
-                                        >
-                                            <div style={{ marginTop: "2px" }} className="markdown-body max-w-none text-[15px] leading-relaxed">
-                                                <ReactMarkdown>{message.content}</ReactMarkdown>
-                                            </div>
-                                        </div>
-
-                                        {message.role === 'user' && (
-                                            <div className="w-9 h-9 rounded-full bg-[#3173AD] flex items-center justify-center flex-shrink-0 mt-1 shadow-md">
-                                                <span className="text-xs font-bold text-white">U</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-
-                                {isLoading && (
-                                    <div style={{ marginTop: "30px" }} className="flex gap-4 justify-start items-start">
+                        <div style={{ marginTop: "20px" }} className="mt-6">
+                            {messages.map((message, index) => (
+                                <div
+                                    key={message.id || index}
+                                    style={{ marginTop: "20px" }}
+                                    className={`flex gap-4 items-start 
+                                        ${message.role === 'user' ? 'justify-end' : 'justify-start'}
+                                        ${index > 0 && messages[index - 1].role !== message.role ? "mt-10" : "mt-3"}
+                                    `}
+                                >
+                                    {message.role === 'assistant' && (
                                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3173AD] to-[#DBF63C] flex items-center justify-center flex-shrink-0 mt-1 shadow-md overflow-hidden">
                                             <img className="h-8" src={robotImageSrc} alt="FinBot" />
                                         </div>
+                                    )}
 
-                                        <div style={{ padding: "10px" }} className="bg-[#1B1B1B] border border-gray-800/50 rounded-2xl px-5 py-4 shadow-md">
-                                            <div className="flex gap-1.5 items-center">
-                                                <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                                <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                                <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                                            </div>
+                                    <div
+                                        style={{ padding: message.role === 'user' ? "5px" : "10px" }}
+                                        className={`max-w-[85%] rounded-2xl px-5 py-2 break-words whitespace-normal
+                                            ${message.role === 'user'
+                                                ? 'bg-[#306d3f] text-white shadow-lg'
+                                                : 'bg-[#1B1B1B] text-gray-100 border border-gray-800/50 shadow-md'
+                                            }`}
+                                    >
+                                        <div style={{ marginTop: "2px" }} className="markdown-body max-w-none text-[15px] leading-relaxed">
+                                            <ReactMarkdown>{message.content}</ReactMarkdown>
                                         </div>
                                     </div>
-                                )}
+
+                                    {message.role === 'user' && (
+                                        <div className="w-9 h-9 rounded-full bg-[#3173AD] flex items-center justify-center flex-shrink-0 mt-1 shadow-md">
+                                            <span className="text-xs font-bold text-white">U</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {isLoading && (
+                                <div style={{ marginTop: "30px" }} className="flex gap-4 justify-start items-start">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3173AD] to-[#DBF63C] flex items-center justify-center flex-shrink-0 mt-1 shadow-md overflow-hidden">
+                                        <img className="h-8" src={robotImageSrc} alt="FinBot" />
+                                    </div>
+
+                                    <div style={{ padding: "10px" }} className="bg-[#1B1B1B] border border-gray-800/50 rounded-2xl px-5 py-4 shadow-md">
+                                        <div className="flex gap-1.5 items-center">
+                                            <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                            <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                            <span className="w-2 h-2 bg-[#3b854e] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div ref={messagesEndRef} className="h-4" />
+                    </div>
+                </div>
+
+                <div 
+                    ref={inputContainerRef}
+                    className="border-t border-gray-800/50 backdrop-blur-md pb-4 sm:pb-0 flex-shrink-0"
+                >
+                    <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 lg:py-5">
+                        <form
+                            onSubmit={handleSend}
+                            className="w-full flex flex-row gap-3 items-end"
+                        >
+                            <div className="flex-1 relative">
+                                <textarea
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend(e);
+                                        }
+                                    }}
+                                    placeholder="Enter Your Question Here..."
+                                    rows={1}
+                                    className="hide-scrollbar w-full bg-[#1B1B1B] border border-gray-800/50 rounded-2xl px-5 py-4 pr-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-[#3173AD] focus:ring-2 focus:ring-[#3173AD]/20 transition-all max-h-32 overflow-y-auto text-[15px] leading-relaxed"
+                                    style={{
+                                        minHeight: '52px',
+                                        height: 'auto',
+                                        padding: "12px"
+                                    }}
+                                    onInput={(e) => {
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
+                                    }}
+                                />
                             </div>
 
-                            <div ref={messagesEndRef} className="h-4" />
-                        </div>
-                    </div>
-
-                    <div 
-                        ref={inputContainerRef}
-                        className="border-t border-gray-800/50 backdrop-blur-md pb-4 sm:pb-0 flex-shrink-0"
-                    >
-                        <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 lg:py-5  ">
-                            <form
-                                onSubmit={handleSend}
-                                className="w-full flex flex-row gap-3 items-end "
+                            <button
+                                type="submit"
+                                style={{ marginBottom: "10px" }}
+                                disabled={!input.trim() || isLoading}
+                                className="w-12 h-12 rounded-2xl bg-[#3173AD] hover:bg-[#2a5f8f] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all flex-shrink-0 shadow-lg hover:shadow-xl disabled:hover:shadow-lg"
                             >
-                                <div className="flex-1 relative">
-                                    <textarea
-                                        ref={inputRef}
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleSend(e);
-                                            }
-                                        }}
-                                        placeholder="Enter Your Question Here..."
-                                        rows={1}
-                                        className="hide-scrollbar w-full bg-[#1B1B1B] border border-gray-800/50 rounded-2xl px-5 py-4 pr-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-[#3173AD] focus:ring-2 focus:ring-[#3173AD]/20 transition-all max-h-32 overflow-y-auto text-[15px] leading-relaxed"
-                                        style={{
-                                            minHeight: '52px',
-                                            height: 'auto',
-                                            padding: "12px"
-                                        }}
-                                        onInput={(e) => {
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
-                                        }}
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    style={{ marginBottom: "10px" }}
-                                    disabled={!input.trim() || isLoading}
-                                    className=" w-12 h-12 rounded-2xl bg-[#3173AD] hover:bg-[#2a5f8f] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all flex-shrink-0 shadow-lg hover:shadow-xl disabled:hover:shadow-lg"
-                                >
-                                    {isLoading ? (
-                                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    ) : (
-                                        <img style={{ height: "20px", marginLeft: "5px" }} src={send} alt="" />
-                                    )}
-                                </button>
-                            </form>
-                        </div>
+                                {isLoading ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : (
+                                    <img style={{ height: "20px", marginLeft: "5px" }} src={send} alt="" />
+                                )}
+                            </button>
+                        </form>
                     </div>
-
                 </div>
+
             </div>
         </div>
     );

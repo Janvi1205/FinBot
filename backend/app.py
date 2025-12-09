@@ -36,7 +36,7 @@ FINANCIAL_KEYWORDS = [
 # Greeting words
 GREETINGS = [
     "hi", "hello", "hey", "hii", "hiii", "yo", "namaste", "hola", "sup", "wassup",
-    "good morning", "good afternoon", "good evening", "greetings", "howdy", "helo"
+    "good morning", "good afternoon", "good evening", "greetings", "howdy", "helo","hiiii","hiiiii"
 ]
 
 
@@ -126,10 +126,10 @@ def ask():
 
     print(f"\n📩 Received: {user_prompt}")
 
-    # Check if it's a greeting
+    
     is_greeting_msg = is_greeting(user_prompt)
     
-    # Check if it's finance-related
+   
     is_finance_related = is_relevant(user_prompt)
 
     # 1️⃣ Handle greetings - always allow

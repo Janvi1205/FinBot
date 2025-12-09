@@ -1,6 +1,6 @@
 # Logs
 backend/.env
-frontend/.env
+frontend/ai_bot/.env
 logs
 *.log
 npm-debug.log*

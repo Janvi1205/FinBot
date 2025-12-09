@@ -13,7 +13,12 @@ app = Flask(__name__)
 CORS(app)
 
 # Config
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+# Use gemini-1.5-flash-latest for better compatibility with API
+model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+# Ensure we use the correct model name format
+if model_name == "gemini-1.5-flash":
+    model_name = "gemini-1.5-flash-latest"
+GEMINI_MODEL = model_name
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:

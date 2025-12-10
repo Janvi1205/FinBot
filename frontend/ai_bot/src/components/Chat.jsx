@@ -250,41 +250,114 @@ service cloud.firestore {
                 await updateDoc(chatRef, { title });
             }
         
-            // Get bot response
-            const response = await fetch(`${API_BASE_URL}/ask`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: userMessage }),
-            });
-        
-            const data = await response.json();
-        
-            if (!response.ok) {
-                throw new Error(data?.error || "Request failed");
-            }
-        
-            const botMessage = data.response;
+            // Create bot message for streaming
             const tempBotMessageId = `temp-${Date.now()}-bot`;
             const tempBotMessage = {
                 id: tempBotMessageId,
                 uid: user.uid,
                 chatId: chatId,
                 role: "assistant",
-                content: botMessage,
+                content: "",
                 timestamp: Date.now()
             };
         
-            // Optimistic update - show bot message immediately
+            // Show bot message immediately (empty, will be filled as stream arrives)
             setMessages(prev => [...prev, tempBotMessage]);
         
-            // ✅ Save assistant message to Firestore with chatId
-            await addDoc(collection(db, "messages"), {
-                uid: user.uid,
-                chatId: chatId,
-                role: "assistant",
-                content: botMessage,
-                timestamp: Date.now()
+            // Get streaming bot response
+            const response = await fetch(`${API_BASE_URL}/ask-stream`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: userMessage }),
             });
+        
+            if (!response.ok) {
+                throw new Error("Request failed");
+            }
+        
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedContent = "";
+            let buffer = "";
+            let isComplete = false;
+        
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    // Process any remaining data in buffer
+                    if (buffer.trim()) {
+                        const lines = buffer.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.chunk) {
+                                        accumulatedContent += data.chunk;
+                                    }
+                                    if (data.done) {
+                                        isComplete = true;
+                                    }
+                                } catch (e) {
+                                    console.error("Error parsing SSE data:", e);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+        
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            if (data.chunk) {
+                                accumulatedContent += data.chunk;
+                                // Update the message with new content
+                                setMessages(prev => prev.map(msg => 
+                                    msg.id === tempBotMessageId 
+                                        ? { ...msg, content: accumulatedContent }
+                                        : msg
+                                ));
+                            }
+                            
+                            if (data.done) {
+                                isComplete = true;
+                            }
+                        } catch (e) {
+                            console.error("Error parsing SSE data:", e);
+                        }
+                    }
+                }
+            }
+            
+            // Final update and save to Firestore
+            if (accumulatedContent) {
+                // Final update to ensure all content is shown
+                setMessages(prev => prev.map(msg => 
+                    msg.id === tempBotMessageId 
+                        ? { ...msg, content: accumulatedContent }
+                        : msg
+                ));
+                
+                // ✅ Save complete assistant message to Firestore
+                await addDoc(collection(db, "messages"), {
+                    uid: user.uid,
+                    chatId: chatId,
+                    role: "assistant",
+                    content: accumulatedContent,
+                    timestamp: Date.now()
+                });
+            }
         
         } catch (error) {
             console.error("Error:", error);

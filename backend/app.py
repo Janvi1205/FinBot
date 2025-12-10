@@ -55,7 +55,8 @@ def is_relevant(message: str) -> bool:
     words = message.lower().split()
 
     for word in words:
-        match = get_close_matches(word, ALLOWED_TOPICS, cutoff=0.7)
+        # Lower threshold to catch more typos (0.6 instead of 0.7)
+        match = get_close_matches(word, ALLOWED_TOPICS, cutoff=0.6)
         if match:
             return True
 
@@ -70,21 +71,96 @@ def ask():
     if not user_prompt:
         return jsonify({"error": "Prompt is required"}), 400
 
+    # Detect if user explicitly requests a language
+    user_prompt_lower = user_prompt.lower()
+    requested_language = None
+    language_keywords = {
+        "bengali": "Bengali",
+        "bangla": "Bengali", 
+        "hindi": "Hindi",
+        "tamil": "Tamil",
+        "telugu": "Telugu",
+        "gujarati": "Gujarati",
+        "marathi": "Marathi",
+        "malayalam": "Malayalam",
+        "kannada": "Kannada",
+        "punjabi": "Punjabi",
+        "odia": "Odia",
+        "assamese": "Assamese",
+        "urdu": "Urdu"
+    }
+    
+    for keyword, lang in language_keywords.items():
+        if f"in {keyword}" in user_prompt_lower or keyword in user_prompt_lower:
+            requested_language = lang
+            # Remove language request from prompt to avoid confusion
+            user_prompt = re.sub(rf'\s*in\s+{keyword}\s*', ' ', user_prompt, flags=re.IGNORECASE).strip()
+            break
+
     # 1️⃣ Greeting — Always allowed
     if is_greeting(user_prompt):
         user_prompt = f"{user_prompt}. Also give one simple Indian finance tip."
 
     # 2️⃣ Financial relevance check (fuzzy)
     elif not is_relevant(user_prompt):
-        return jsonify({
-            "response":
-            "I can answer only questions related to Indian financial literacy — "
+        # Detect language and respond accordingly
+        error_prompt = (
+            "The user asked: '{user_prompt}'\n\n"
+            "CRITICAL LANGUAGE REQUIREMENT:\n"
+            "{language_instruction}\n"
+            "Respond with: 'I can answer only questions related to Indian financial literacy — "
             "like budgeting, saving, investing, RBI rules, loans, tax, and government schemes.\n\n"
-            "Please ask something from these topics."
-        })
+            "Please ask something from these topics.'\n"
+            "Translate this ENTIRE message to match the user's language. EVERY SINGLE WORD must be in that language."
+        ).format(
+            user_prompt=user_prompt,
+            language_instruction=(
+                f"Respond COMPLETELY in {requested_language}. EVERY SINGLE WORD, sentence, and paragraph must be in {requested_language}."
+                if requested_language else
+                "Detect the language of the user's question and respond in EXACTLY that same language. EVERY SINGLE WORD must be in that language."
+            )
+        )
+        
+        try:
+            error_response = model.generate_content(error_prompt)
+            return jsonify({"response": error_response.text})
+        except Exception:
+            # Fallback to English if error occurs
+            return jsonify({
+                "response":
+                "I can answer only questions related to Indian financial literacy — "
+                "like budgeting, saving, investing, RBI rules, loans, tax, and government schemes.\n\n"
+                "Please ask something from these topics."
+            })
 
     # 3️⃣ If relevant → continue normally
+    if requested_language:
+        language_instruction = (
+            f"CRITICAL: The user has requested the response in {requested_language}.\n"
+            f"You MUST respond COMPLETELY in {requested_language}. EVERY SINGLE WORD, sentence, heading, paragraph, and bullet point must be in {requested_language}.\n"
+            f"DO NOT mix languages. DO NOT use English words. DO NOT provide English translations in parentheses.\n"
+            f"Write the ENTIRE response from start to finish ONLY in {requested_language}.\n"
+        )
+    else:
+        language_instruction = (
+            "Detect the language of the user's question and respond in EXACTLY that same language.\n"
+            "If the user asks in Hindi, respond COMPLETELY in Hindi. If they ask in English, respond COMPLETELY in English.\n"
+            "If they ask in Tamil, Telugu, Bengali, Gujarati, Marathi, or any other language, respond COMPLETELY in that same language.\n"
+            "EVERY SINGLE WORD, sentence, heading, paragraph, and bullet point must be in that detected language.\n"
+            "DO NOT mix languages. DO NOT use English words or translations in parentheses.\n"
+        )
+    
     final_prompt = (
+        "⚠️⚠️⚠️ LANGUAGE INSTRUCTION (MOST CRITICAL - READ THIS FIRST) ⚠️⚠️⚠️\n"
+        f"{language_instruction}\n"
+        "Write the ENTIRE response from start to finish in ONE language only.\n\n"
+        "TYPO AND SPELLING ERROR HANDLING:\n"
+        "The user's question may contain typos, spelling mistakes, or incorrect spellings.\n"
+        "You MUST automatically detect and understand what the user is trying to ask, even with errors.\n"
+        "Examples: 'invset' should be understood as 'invest', 'schmee' as 'scheme', 'taxx' as 'tax', 'loaan' as 'loan', 'budjet' as 'budget'.\n"
+        "Intelligently correct and interpret the question, then answer the intended question.\n"
+        "DO NOT point out the spelling mistakes - just understand the intent and answer naturally.\n"
+        "Handle misspellings in ANY language intelligently.\n\n"
         "You must answer ONLY in the context of Indian financial literacy.\n"
         "Include government schemes, RBI guidelines, tax/loan implications, "
         "and practical next steps when relevant.\n\n"

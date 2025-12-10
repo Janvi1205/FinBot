@@ -13,18 +13,24 @@ app = Flask(__name__)
 CORS(app)
 
 # Config
-# Use gemini-1.5-flash-latest for better compatibility with API
-model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
-# Ensure we use the correct model name format
-if model_name == "gemini-1.5-flash":
-    model_name = "gemini-1.5-flash-latest"
-GEMINI_MODEL = model_name
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY is not set. Add it to backend/.env")
 
 genai.configure(api_key=GEMINI_API_KEY)
+
+# Model configuration - use FREE gemini-1.5-flash model
+# gemini-1.5-flash-latest is the free tier model
+model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+# Convert any flash variant to latest version for API compatibility
+if "flash" in model_name.lower() and "latest" not in model_name.lower():
+    model_name = "gemini-1.5-flash-latest"
+# Ensure we're using free flash model, not pro
+if "pro" in model_name.lower() and "flash" not in model_name.lower():
+    model_name = "gemini-1.5-flash-latest"
+
+GEMINI_MODEL = model_name
 model = genai.GenerativeModel(GEMINI_MODEL)
 
 # Core financial keywords

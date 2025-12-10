@@ -2,24 +2,20 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
-import google.generativeai as genai
+import requests
 from difflib import get_close_matches
 import re
-
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not set. Add it to backend/.env")
-
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(GEMINI_MODEL)
+if not MISTRAL_API_KEY:
+    raise RuntimeError("MISTRAL_API_KEY is not set. Add it to backend/.env")
 
 # Allowed topics list
 ALLOWED_TOPICS = [
@@ -34,33 +30,43 @@ GREETINGS = ["hi", "hello", "hey", "hii", "yo", "namaste", "hola"]
 
 def is_greeting(message: str) -> bool:
     msg = message.lower().strip()
-
-    # Remove punctuation for better matching
     msg_clean = re.sub(r'[^\w\s]', '', msg)
-
-    # Split into words
     words = msg_clean.split()
-
     return any(word in GREETINGS for word in words)
 
 
 def is_relevant(message: str) -> bool:
-    """
-    Fuzzy matching for financial relevance.
-    Detects misspellings like:
-    - invset → invest
-    - schmee → scheme
-    - ln → loan
-    """
+    """Fuzzy matching for financial relevance."""
     words = message.lower().split()
-
     for word in words:
-        # Lower threshold to catch more typos (0.6 instead of 0.7)
         match = get_close_matches(word, ALLOWED_TOPICS, cutoff=0.6)
         if match:
             return True
-
     return False
+
+
+def call_mistral(prompt: str) -> str:
+    """Call Mistral API"""
+    url = "https://api.mistral.ai/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {MISTRAL_API_KEY}"
+    }
+    
+    payload = {
+        "model": MISTRAL_MODEL,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 2000
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    response.raise_for_status()
+    
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
 
 
 @app.post("/ask")
@@ -93,7 +99,6 @@ def ask():
     for keyword, lang in language_keywords.items():
         if f"in {keyword}" in user_prompt_lower or keyword in user_prompt_lower:
             requested_language = lang
-            # Remove language request from prompt to avoid confusion
             user_prompt = re.sub(rf'\s*in\s+{keyword}\s*', ' ', user_prompt, flags=re.IGNORECASE).strip()
             break
 
@@ -103,7 +108,6 @@ def ask():
 
     # 2️⃣ Financial relevance check (fuzzy)
     elif not is_relevant(user_prompt):
-        # Detect language and respond accordingly
         error_prompt = (
             "The user asked: '{user_prompt}'\n\n"
             "CRITICAL LANGUAGE REQUIREMENT:\n"
@@ -122,10 +126,9 @@ def ask():
         )
         
         try:
-            error_response = model.generate_content(error_prompt)
-            return jsonify({"response": error_response.text})
+            error_response = call_mistral(error_prompt)
+            return jsonify({"response": error_response})
         except Exception:
-            # Fallback to English if error occurs
             return jsonify({
                 "response":
                 "I can answer only questions related to Indian financial literacy — "
@@ -178,8 +181,8 @@ def ask():
     )
 
     try:
-        response = model.generate_content(final_prompt)
-        return jsonify({"response": response.text})
+        response_text = call_mistral(final_prompt)
+        return jsonify({"response": response_text})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

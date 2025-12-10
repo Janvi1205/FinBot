@@ -1,4 +1,4 @@
 [build]
-  base = "frontend/AI bot"
+  base = "frontend/ai_bot"
   publish = "dist"
   command = "npm run build"

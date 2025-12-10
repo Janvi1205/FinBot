@@ -25,7 +25,10 @@ def is_greeting(message: str) -> bool:
     msg = message.lower().strip()
     msg_clean = re.sub(r'[^\w\s]', '', msg)
     words = msg_clean.split()
-    return any(word in GREETINGS for word in words) and len(words) <= 3
+    # Check if it's a short message with greeting words
+    if len(words) <= 5:  # Increased from 3 to catch "hi there", "hello how are you"
+        return any(word in GREETINGS for word in words)
+    return False
 
 
 def call_mistral(prompt: str) -> str:
@@ -123,9 +126,37 @@ def ask():
 
         # 1️⃣ Quick greeting check
         if is_greeting(user_prompt):
-            user_prompt = f"{user_prompt}. Also give one simple Indian finance tip."
-            # Skip relevance check for greetings
-            relevance_check = {"is_relevant": True, "language": "English"}
+            print(f"[DEBUG] Detected greeting")
+            # Detect language for greeting
+            greeting_check_prompt = f"""Detect the language of this greeting: "{user_prompt}"
+
+Respond with ONLY the language name: English, Hindi, Tamil, Telugu, Bengali, Gujarati, Marathi, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu, etc.
+
+If unsure, respond with: English"""
+            
+            try:
+                detected_lang = call_mistral(greeting_check_prompt).strip()
+                print(f"[DEBUG] Greeting language: {detected_lang}")
+            except:
+                detected_lang = "English"
+            
+            greeting_prompt = f"""The user greeted you with: "{user_prompt}"
+
+CRITICAL: Respond COMPLETELY in {detected_lang}. Every single word must be in {detected_lang}.
+
+1. Greet them back warmly in {detected_lang}
+2. Introduce yourself as a financial literacy assistant for India in {detected_lang}
+3. Give ONE simple practical finance tip in {detected_lang}
+
+Keep it friendly and under 100 words. Use {detected_lang} ONLY."""
+            
+            try:
+                greeting_response = call_mistral(greeting_prompt)
+                return jsonify({"response": greeting_response})
+            except Exception as e:
+                print(f"[ERROR] Greeting response failed: {str(e)}")
+                return jsonify({"response": "Hello! I'm your Indian financial literacy assistant. I can help you with questions about loans, savings, investments, taxes, insurance, and government schemes. How can I help you today?"})
+            
         else:
             # 2️⃣ AI-powered relevance check
             print(f"[DEBUG] Checking relevance with AI...")
@@ -165,11 +196,23 @@ The user asked in {detected_language}: "{user_prompt}"
 
 YOU MUST RESPOND COMPLETELY IN {detected_language}.
 EVERY single word, sentence, heading, paragraph, and bullet point must be in {detected_language}.
-DO NOT mix languages. DO NOT use English words. DO NOT add translations in parentheses.
+
+STRICT LANGUAGE RULES:
+- If {detected_language} is "English" → Respond ONLY in English
+- If {detected_language} is "Hindi" → Respond ONLY in Hindi (हिंदी में)
+- If {detected_language} is "Tamil" → Respond ONLY in Tamil (தமிழில்)
+- If {detected_language} is "Telugu" → Respond ONLY in Telugu (తెలుగులో)
+- If {detected_language} is "Bengali" → Respond ONLY in Bengali (বাংলায়)
+- If {detected_language} is "Gujarati" → Respond ONLY in Gujarati (ગુજરાતીમાં)
+- If {detected_language} is "Marathi" → Respond ONLY in Marathi (मराठीत)
+- And so on for ANY language detected
+
+DO NOT mix languages. DO NOT use English words if the detected language is not English.
+DO NOT add translations in parentheses.
 
 TYPO HANDLING:
 - User may have spelling mistakes in ANY language
-- Intelligently understand the intent (e.g., "loaan" = "loan", "invset" = "invest")
+- Intelligently understand the intent (e.g., "loaan" = "loan", "invset" = "invest", "engkish" = "english")
 - Answer the intended question naturally without pointing out errors
 
 CONTENT REQUIREMENTS:
@@ -191,6 +234,8 @@ FORMAT (in {detected_language}):
 4. Use bullet points for lists
 5. Bold important terms with **bold**
 6. Keep it clean, spacious, and readable
+
+REMEMBER: Write EVERYTHING in {detected_language}. If English was detected, use ONLY English. If Hindi was detected, use ONLY Hindi.
 
 User's question: {user_prompt}"""
 

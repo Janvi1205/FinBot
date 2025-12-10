@@ -3,7 +3,6 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import requests
-from difflib import get_close_matches
 import re
 
 load_dotenv()
@@ -17,36 +16,20 @@ MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 if not MISTRAL_API_KEY:
     raise RuntimeError("MISTRAL_API_KEY is not set. Add it to backend/.env")
 
-# Allowed topics list
-ALLOWED_TOPICS = [
-    "scheme", "yojana", "finance", "financial", "budget", "saving",
-    "investment", "investing", "income tax", "mutual fund", "insurance",
-    "rbi", "loan", "pf", "pension", "subsidy", "government benefit", "invest"
-]
- 
-# Greeting words
-GREETINGS = ["hi", "hello", "hey", "hii", "yo", "namaste", "hola"]
+# Simple greetings for quick check
+GREETINGS = ["hi", "hello", "hey", "hii", "yo", "namaste", "hola", "नमस्ते", "हाय", "हेलो"]
 
 
 def is_greeting(message: str) -> bool:
+    """Quick greeting detection"""
     msg = message.lower().strip()
     msg_clean = re.sub(r'[^\w\s]', '', msg)
     words = msg_clean.split()
-    return any(word in GREETINGS for word in words)
-
-
-def is_relevant(message: str) -> bool:
-    """Fuzzy matching for financial relevance."""
-    words = message.lower().split()
-    for word in words:
-        match = get_close_matches(word, ALLOWED_TOPICS, cutoff=0.6)
-        if match:
-            return True
-    return False
+    return any(word in GREETINGS for word in words) and len(words) <= 3
 
 
 def call_mistral(prompt: str) -> str:
-    """Call Mistral API"""
+    """Call Mistral API with error handling"""
     url = "https://api.mistral.ai/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
@@ -62,128 +45,161 @@ def call_mistral(prompt: str) -> str:
         "max_tokens": 2000
     }
     
-    response = requests.post(url, json=payload, headers=headers)
-    response.raise_for_status()
-    
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+    except requests.exceptions.Timeout:
+        raise Exception("Request to Mistral API timed out. Please try again.")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Error calling Mistral API: {str(e)}")
+
+
+def check_relevance_with_ai(user_prompt: str) -> dict:
+    """
+    Use AI to intelligently check if question is about Indian finance.
+    Returns: {"is_relevant": bool, "language": str, "reason": str}
+    """
+    check_prompt = f"""You are a relevance checker for an Indian financial literacy chatbot.
+
+USER QUESTION: "{user_prompt}"
+
+TASK: Determine if this question is related to Indian financial literacy topics.
+
+FINANCIAL TOPICS INCLUDE (in ANY language):
+- Banking, loans (home loan, personal loan, car loan, education loan, business loan)
+- Savings, investments, mutual funds, stocks, bonds, FD, RD
+- Insurance (life, health, vehicle, property)
+- Taxes (income tax, GST, TDS)
+- Government schemes (PM schemes, subsidies, welfare programs)
+- Budgeting, money management, financial planning
+- Credit cards, credit score, EMI
+- Retirement planning (PPF, NPS, pension)
+- RBI regulations, monetary policy
+- Real estate, property investment
+- Gold, commodities
+
+RESPOND IN THIS EXACT JSON FORMAT (nothing else):
+{{
+  "is_relevant": true/false,
+  "language": "detected language (e.g., Hindi, English, Tamil, Telugu, etc.)",
+  "reason": "brief explanation"
+}}
+
+IMPORTANT:
+- If question is about finance/money/banking/schemes in ANY language → is_relevant: true
+- If question is about weather, sports, cooking, general knowledge, etc. → is_relevant: false
+- Detect the language correctly (Hindi, English, Tamil, Telugu, Bengali, Gujarati, Marathi, Kannada, Malayalam, Punjabi, etc.)
+- Be lenient with typos and spelling mistakes"""
+
+    try:
+        response = call_mistral(check_prompt)
+        # Extract JSON from response (in case Mistral adds extra text)
+        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        if json_match:
+            import json
+            return json.loads(json_match.group())
+        else:
+            # Fallback: assume relevant if we can't parse
+            return {"is_relevant": True, "language": "English", "reason": "Could not parse response"}
+    except Exception as e:
+        print(f"[ERROR] AI relevance check failed: {str(e)}")
+        # Fallback: assume relevant to avoid blocking users
+        return {"is_relevant": True, "language": "English", "reason": "Fallback due to error"}
 
 
 @app.post("/ask")
 def ask():
-    data = request.get_json(silent=True) or {}
-    user_prompt = data.get("prompt", "").strip()
-
-    if not user_prompt:
-        return jsonify({"error": "Prompt is required"}), 400
-
-    # Detect if user explicitly requests a language
-    user_prompt_lower = user_prompt.lower()
-    requested_language = None
-    language_keywords = {
-        "bengali": "Bengali",
-        "bangla": "Bengali", 
-        "hindi": "Hindi",
-        "tamil": "Tamil",
-        "telugu": "Telugu",
-        "gujarati": "Gujarati",
-        "marathi": "Marathi",
-        "malayalam": "Malayalam",
-        "kannada": "Kannada",
-        "punjabi": "Punjabi",
-        "odia": "Odia",
-        "assamese": "Assamese",
-        "urdu": "Urdu"
-    }
-    
-    for keyword, lang in language_keywords.items():
-        if f"in {keyword}" in user_prompt_lower or keyword in user_prompt_lower:
-            requested_language = lang
-            user_prompt = re.sub(rf'\s*in\s+{keyword}\s*', ' ', user_prompt, flags=re.IGNORECASE).strip()
-            break
-
-    # 1️⃣ Greeting — Always allowed
-    if is_greeting(user_prompt):
-        user_prompt = f"{user_prompt}. Also give one simple Indian finance tip."
-
-    # 2️⃣ Financial relevance check (fuzzy)
-    elif not is_relevant(user_prompt):
-        error_prompt = (
-            "The user asked: '{user_prompt}'\n\n"
-            "CRITICAL LANGUAGE REQUIREMENT:\n"
-            "{language_instruction}\n"
-            "Respond with: 'I can answer only questions related to Indian financial literacy — "
-            "like budgeting, saving, investing, RBI rules, loans, tax, and government schemes.\n\n"
-            "Please ask something from these topics.'\n"
-            "Translate this ENTIRE message to match the user's language. EVERY SINGLE WORD must be in that language."
-        ).format(
-            user_prompt=user_prompt,
-            language_instruction=(
-                f"Respond COMPLETELY in {requested_language}. EVERY SINGLE WORD, sentence, and paragraph must be in {requested_language}."
-                if requested_language else
-                "Detect the language of the user's question and respond in EXACTLY that same language. EVERY SINGLE WORD must be in that language."
-            )
-        )
-        
-        try:
-            error_response = call_mistral(error_prompt)
-            return jsonify({"response": error_response})
-        except Exception:
-            return jsonify({
-                "response":
-                "I can answer only questions related to Indian financial literacy — "
-                "like budgeting, saving, investing, RBI rules, loans, tax, and government schemes.\n\n"
-                "Please ask something from these topics."
-            })
-
-    # 3️⃣ If relevant → continue normally
-    if requested_language:
-        language_instruction = (
-            f"CRITICAL: The user has requested the response in {requested_language}.\n"
-            f"You MUST respond COMPLETELY in {requested_language}. EVERY SINGLE WORD, sentence, heading, paragraph, and bullet point must be in {requested_language}.\n"
-            f"DO NOT mix languages. DO NOT use English words. DO NOT provide English translations in parentheses.\n"
-            f"Write the ENTIRE response from start to finish ONLY in {requested_language}.\n"
-        )
-    else:
-        language_instruction = (
-            "Detect the language of the user's question and respond in EXACTLY that same language.\n"
-            "If the user asks in Hindi, respond COMPLETELY in Hindi. If they ask in English, respond COMPLETELY in English.\n"
-            "If they ask in Tamil, Telugu, Bengali, Gujarati, Marathi, or any other language, respond COMPLETELY in that same language.\n"
-            "EVERY SINGLE WORD, sentence, heading, paragraph, and bullet point must be in that detected language.\n"
-            "DO NOT mix languages. DO NOT use English words or translations in parentheses.\n"
-        )
-    
-    final_prompt = (
-        "⚠️⚠️⚠️ LANGUAGE INSTRUCTION (MOST CRITICAL - READ THIS FIRST) ⚠️⚠️⚠️\n"
-        f"{language_instruction}\n"
-        "Write the ENTIRE response from start to finish in ONE language only.\n\n"
-        "TYPO AND SPELLING ERROR HANDLING:\n"
-        "The user's question may contain typos, spelling mistakes, or incorrect spellings.\n"
-        "You MUST automatically detect and understand what the user is trying to ask, even with errors.\n"
-        "Examples: 'invset' should be understood as 'invest', 'schmee' as 'scheme', 'taxx' as 'tax', 'loaan' as 'loan', 'budjet' as 'budget'.\n"
-        "Intelligently correct and interpret the question, then answer the intended question.\n"
-        "DO NOT point out the spelling mistakes - just understand the intent and answer naturally.\n"
-        "Handle misspellings in ANY language intelligently.\n\n"
-        "You must answer ONLY in the context of Indian financial literacy.\n"
-        "Include government schemes, RBI guidelines, tax/loan implications, "
-        "and practical next steps when relevant.\n\n"
-        "FORMAT INSTRUCTIONS (follow exactly):\n"
-        "1. Use `###` for section headings.\n"
-        "2. Add ONE completely blank line after every heading.\n"
-        "3. Add ONE completely blank line between every paragraph.\n"
-        "4. Use bullet lists for steps, benefits, features, risks.\n"
-        "5. Bold important terms using **bold**.\n"
-        "6. NEVER output dense text or multiple sentences in one paragraph.\n"
-        "7. If needed, use `<br>` ONLY to force spacing — but prefer blank lines.\n\n"
-        "Important: Your answer must be clean, spacious, and easy to read.\n\n"
-        "If the user greets you, reply warmly but still give one simple finance tip.\n\n"
-        f"User question: {user_prompt}"
-    )
-
     try:
+        data = request.get_json(silent=True) or {}
+        user_prompt = data.get("prompt", "").strip()
+
+        if not user_prompt:
+            return jsonify({"error": "Prompt is required"}), 400
+
+        print(f"[DEBUG] Received prompt: {user_prompt}")
+
+        # 1️⃣ Quick greeting check
+        if is_greeting(user_prompt):
+            user_prompt = f"{user_prompt}. Also give one simple Indian finance tip."
+            # Skip relevance check for greetings
+            relevance_check = {"is_relevant": True, "language": "English"}
+        else:
+            # 2️⃣ AI-powered relevance check
+            print(f"[DEBUG] Checking relevance with AI...")
+            relevance_check = check_relevance_with_ai(user_prompt)
+            print(f"[DEBUG] Relevance result: {relevance_check}")
+
+        # 3️⃣ If not relevant, return error in detected language
+        if not relevance_check.get("is_relevant", True):
+            detected_language = relevance_check.get("language", "English")
+            
+            error_prompt = f"""The user asked: "{user_prompt}"
+
+This question is NOT about Indian financial literacy.
+
+CRITICAL INSTRUCTION:
+Respond COMPLETELY in {detected_language}. Every single word must be in {detected_language}.
+
+Say: "I can only answer questions about Indian financial topics like loans, savings, investments, taxes, insurance, government schemes, banking, and money management. Please ask a finance-related question."
+
+Translate this ENTIRE message to {detected_language}. Do NOT use English words."""
+
+            try:
+                error_response = call_mistral(error_prompt)
+                return jsonify({"response": error_response})
+            except Exception:
+                return jsonify({
+                    "response": "I can only answer questions about Indian financial topics like loans, savings, investments, taxes, insurance, government schemes, banking, and money management. Please ask a finance-related question."
+                })
+
+        # 4️⃣ Question is relevant - generate full answer
+        detected_language = relevance_check.get("language", "English")
+        print(f"[DEBUG] Generating answer in {detected_language}")
+
+        final_prompt = f"""⚠️⚠️⚠️ CRITICAL LANGUAGE INSTRUCTION ⚠️⚠️⚠️
+
+The user asked in {detected_language}: "{user_prompt}"
+
+YOU MUST RESPOND COMPLETELY IN {detected_language}.
+EVERY single word, sentence, heading, paragraph, and bullet point must be in {detected_language}.
+DO NOT mix languages. DO NOT use English words. DO NOT add translations in parentheses.
+
+TYPO HANDLING:
+- User may have spelling mistakes in ANY language
+- Intelligently understand the intent (e.g., "loaan" = "loan", "invset" = "invest")
+- Answer the intended question naturally without pointing out errors
+
+CONTENT REQUIREMENTS:
+You are an Indian financial literacy expert. Answer in the context of:
+- Indian banking system, RBI guidelines
+- Government schemes (PM schemes, state schemes, subsidies)
+- Indian tax laws (Income Tax Act, GST)
+- Indian investment options (PPF, NPS, mutual funds, stocks, FD, RD)
+- Loan types available in India (home, personal, education, business, car loans)
+- Insurance in India (LIC, health insurance, term insurance)
+- Credit system in India (CIBIL score, credit cards, EMI)
+
+Give practical, actionable advice with steps when relevant.
+
+FORMAT (in {detected_language}):
+1. Use `###` for headings
+2. One blank line after every heading
+3. One blank line between paragraphs
+4. Use bullet points for lists
+5. Bold important terms with **bold**
+6. Keep it clean, spacious, and readable
+
+User's question: {user_prompt}"""
+
         response_text = call_mistral(final_prompt)
+        print(f"[DEBUG] Successfully generated response")
         return jsonify({"response": response_text})
+
     except Exception as exc:
+        print(f"[ERROR] Exception in /ask endpoint: {str(exc)}")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -193,4 +209,6 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    print("[INFO] Starting Flask server...")
+    app.run(debug=True, host="0.0.0.0", port=5000)
+        

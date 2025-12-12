@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "fire
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
-// Helper function to convert Firebase errors to user-friendly messages
+//this is helpr func
 const getErrorMessage = (error) => {
   const errorCode = error.code;
   
@@ -65,7 +65,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#090909] relative overflow-hidden">
-      {/* Background effects */}
+      
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-200px] left-[-200px] w-[700px] h-[700px] rounded-full 
                         bg-[#DBF63C] opacity-[0.35] blur-[180px]"></div>

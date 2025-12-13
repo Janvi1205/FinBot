@@ -31,6 +31,24 @@ def is_greeting(message: str) -> bool:
     return False
 
 
+def clean_response(response: str) -> str:
+    """Remove meta-text like word counts and translation notes from AI responses"""
+    # Remove word count patterns
+    response = re.sub(r'\(Word count:?\s*\d+\)', '', response, flags=re.IGNORECASE)
+    response = re.sub(r'Word count:?\s*\d+', '', response, flags=re.IGNORECASE)
+    
+    # Remove translation notes
+    response = re.sub(r'\(Translation.*?\)', '', response, flags=re.IGNORECASE | re.DOTALL)
+    response = re.sub(r'If you\'d like.*?another language.*?\n*', '', response, flags=re.IGNORECASE | re.DOTALL)
+    response = re.sub(r'Note:.*?translation.*?\n*', '', response, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Clean up extra whitespace
+    response = re.sub(r'\n{3,}', '\n\n', response)  # Max 2 newlines
+    response = response.strip()
+    
+    return response
+
+
 def call_mistral(prompt: str) -> str:
     """Call Mistral API with error handling"""
     url = "https://api.mistral.ai/v1/chat/completions"
@@ -148,10 +166,13 @@ CRITICAL: Respond COMPLETELY in {detected_lang}. Every single word must be in {d
 2. Introduce yourself as a financial literacy assistant for India in {detected_lang}
 3. Give ONE simple practical finance tip in {detected_lang}
 
-Keep it friendly and under 100 words. Use {detected_lang} ONLY."""
+Keep it friendly and under 80 words. Use {detected_lang} ONLY.
+
+DO NOT include word counts, notes, or meta-commentary. Provide ONLY the greeting message itself."""
             
             try:
                 greeting_response = call_mistral(greeting_prompt)
+                greeting_response = clean_response(greeting_response)
                 return jsonify({"response": greeting_response})
             except Exception as e:
                 print(f"[ERROR] Greeting response failed: {str(e)}")
@@ -171,15 +192,19 @@ Keep it friendly and under 100 words. Use {detected_lang} ONLY."""
 
 This question is NOT about Indian financial literacy.
 
-CRITICAL INSTRUCTION:
-Respond COMPLETELY in {detected_language}. Every single word must be in {detected_language}.
+CRITICAL: Respond in {detected_language} ONLY. No English if {detected_language} is not English.
 
-Say: "I can only answer questions about Indian financial topics like loans, savings, investments, taxes, insurance, government schemes, banking, and money management. Please ask a finance-related question."
+Message to convey: "I can only answer questions about Indian financial topics like loans, savings, investments, taxes, insurance, government schemes, banking, and money management. Please ask a finance-related question."
 
-Translate this ENTIRE message to {detected_language}. Do NOT use English words."""
+Translate this ENTIRE message to {detected_language}.
+
+DO NOT add any notes, explanations, or meta-commentary about translation.
+DO NOT mention English or other languages.
+Provide ONLY the translated message itself."""
 
             try:
                 error_response = call_mistral(error_prompt)
+                error_response = clean_response(error_response)
                 return jsonify({"response": error_response})
             except Exception:
                 return jsonify({
@@ -209,6 +234,7 @@ STRICT LANGUAGE RULES:
 
 DO NOT mix languages. DO NOT use English words if the detected language is not English.
 DO NOT add translations in parentheses.
+DO NOT add word counts or meta-commentary.
 
 TYPO HANDLING:
 - User may have spelling mistakes in ANY language
@@ -235,11 +261,12 @@ FORMAT (in {detected_language}):
 5. Bold important terms with **bold**
 6. Keep it clean, spacious, and readable
 
-REMEMBER: Write EVERYTHING in {detected_language}. If English was detected, use ONLY English. If Hindi was detected, use ONLY Hindi.
+REMEMBER: Write EVERYTHING in {detected_language}. Provide ONLY the answer itself, no meta-text.
 
 User's question: {user_prompt}"""
 
         response_text = call_mistral(final_prompt)
+        response_text = clean_response(response_text)
         print(f"[DEBUG] Successfully generated response")
         return jsonify({"response": response_text})
 
@@ -256,4 +283,3 @@ def health():
 if __name__ == "__main__":
     print("[INFO] Starting Flask server...")
     app.run(debug=True, host="0.0.0.0", port=5000)
-        

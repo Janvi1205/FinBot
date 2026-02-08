@@ -6,7 +6,7 @@ const About = () => {
 
    
     const robotBookImageSrc = new URL('../assets/robot2.png', import.meta.url).href
-     const dot = new URL('../assets/record-button.png', import.meta.url).href
+    const dot = new URL('../assets/record-button.png', import.meta.url).href
     
 
     return (

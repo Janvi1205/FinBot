@@ -7,7 +7,7 @@ import { collection, addDoc } from "firebase/firestore";
 export default function ChatPage() {
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [chatKey, setChatKey] = useState(0); // Force remount when needed
+  const [chatKey, setChatKey] = useState(0); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {

@@ -142,7 +142,7 @@ def ask():
 
         print(f"[DEBUG] Received prompt: {user_prompt}")
 
-        # 1️⃣ Quick greeting check
+        
         if is_greeting(user_prompt):
             print(f"[DEBUG] Detected greeting")
             # Detect language for greeting

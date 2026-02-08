@@ -21,7 +21,7 @@ const Navbar = () => {
             FinBot
           </div>
 
-          {/* Desktop Menu */}
+          
           <div style={{marginRight:"30px"}} className="hidden sm:flex items-center text-lg sm:text-xl lg:text-2xl gap-4 sm:gap-6 lg:gap-8  " >
             {navItems.map((item) => (
               item.type === "route" ? (

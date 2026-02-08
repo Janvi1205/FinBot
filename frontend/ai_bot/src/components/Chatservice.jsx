@@ -11,7 +11,7 @@ import {
 export async function saveMessage(uid, text, sender) {
   await addDoc(collection(db, "users", uid, "chats"), {
     text: text,
-    sender: sender,     // "user" or "bot"
+    sender: sender,    
     timestamp: serverTimestamp()
   });
 }
